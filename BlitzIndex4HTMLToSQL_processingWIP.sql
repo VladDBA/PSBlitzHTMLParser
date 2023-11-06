@@ -1,11 +1,18 @@
 DECLARE @XMLContent XML,
 @FileName NVARCHAR(512);
 
+IF OBJECT_ID(N'tempdb.dbo.##PSBlitzIndexDiagnosis', N'U') IS NOT NULL
+  BEGIN
+      DROP TABLE ##PSBlitzIndexDiagnosis;
+  END;
 
-SELECT @XMLContent = CONVERT (XML, REPLACE(REPLACE(REPLACE(BulkColumn, '<a href="#top">Jump to top</a>', ''), '<br>', ''), '<td></td>', '<td>x</td>'), 2)
-FROM   OPENROWSET (BULK 'E:\VSQL\Backup\BlitzIndex_4_.html', SINGLE_CLOB) AS HTMLData;
+SELECT @XMLContent = CONVERT (XML, 
+     REPLACE(REPLACE(REPLACE(BulkColumn, '<a href="#top">Jump to top</a>', ''), '<br>', ''), '<td></td>', '<td>x</td>')
+                              , 2)
+FROM   OPENROWSET (BULK 'E:\VSQL\Backup\BlitzIndex_4_.html', SINGLE_BLOB) AS HTMLData;
 
-	 SELECT     xx.value('(./td/text())[1]', 'INT')            AS [Priority],
+WITH XMLToTableCTE
+     AS (SELECT xx.value('(./td/text())[1]', 'INT')            AS [Priority],
                 xx.value('(./td/text())[2]', 'NVARCHAR(200)')  AS [Finding],
                 xx.value('(./td/text())[3]', 'NVARCHAR(128)')  AS [DatabaseName],
                 xx.value('(./td/text())[4]', 'NVARCHAR(MAX)')  AS [Details],
@@ -13,14 +20,77 @@ FROM   OPENROWSET (BULK 'E:\VSQL\Backup\BlitzIndex_4_.html', SINGLE_CLOB) AS HTM
                 xx.value('(./td/text())[6]', 'NVARCHAR(MAX)')  AS [SecretColumns],
                 xx.value('(./td/text())[7]', 'NVARCHAR(MAX)')  AS [Usage],
                 xx.value('(./td/text())[8]', 'NVARCHAR(MAX)')  AS [Size],
-				xx.value('(./td/text())[9]', 'NVARCHAR(MAX)')  AS [MoreInfo],
+                xx.value('(./td/text())[9]', 'NVARCHAR(MAX)')  AS [MoreInfo],
                 xx.value('(./td/text())[10]', 'NVARCHAR(MAX)') AS [CreateTSQL]
-				INTO ##PSBlitzIndexDiagnosis
          FROM   (VALUES(@XMLContent)) t1(x)
-                CROSS APPLY x.nodes('//table[1]/tr[position()>1]') t2(xx)
+                CROSS APPLY x.nodes('//table[1]/tr[position()>1]') t2(xx))
+SELECT [Priority],
+       [Finding],
+       [DatabaseName],
+       [Details],
+       [Definition],
+       [SecretColumns],
+       [Usage],
+       [Size],
+       [MoreInfo],
+       [CreateTSQL],
+	   REPLACE(REPLACE(REPLACE([MoreInfo], 'EXEC dbo.sp_BlitzIndex @DatabaseName='''+[DatabaseName]+''', @SchemaName=''', ''), ''', @TableName=''', '.'), ''';', '') AS [TableName],
+	   CAST('' AS NVARCHAR(300)) AS [DataPrep],
+	   CAST('' AS NVARCHAR(300)) AS [ObjectName]
+INTO ##PSBlitzIndexDiagnosis
+FROM   XMLToTableCTE
+ORDER  BY [Priority] ASC,[Finding]
+ASC;
+GO
+/*Prepare data here */
 
+UPDATE ##PSBlitzIndexDiagnosis
+SET    [DataPrep] = CASE
+                      WHEN [Finding] LIKE N'%Wide Tables: 35+ cols or > 2000 non-LOB bytes'
+                           AND [Details] LIKE '%LOB types.' THEN REPLACE(REPLACE(REPLACE(REPLACE([Details], [TableName] + ' has ', ''), ' total columns with a max possible width of', ''), ' bytes', ''), ' columns are LOB types.', '')
+                      WHEN [Finding] LIKE N'%Wide Tables: 35+ cols or > 2000 non-LOB bytes'
+                           AND [Details] NOT LIKE '%LOB types.' THEN REPLACE(REPLACE(REPLACE(REPLACE([Details], [TableName] + ' has ', ''), ' total columns with a max possible width of', ''), ' bytes', ''), '.', '')
+                      WHEN [Finding] LIKE '%Addicted to Nulls' THEN REPLACE(REPLACE(REPLACE([Details], [TableName] + ' allows null in ', ''), ' columns.', ''), ' of ', ' ')
+					  WHEN [Finding] LIKE '%Wide Clustered Index (> 3 columns OR > 16 bytes)'
+					  THEN REPLACE(REPLACE(LEFT([Details], CHARINDEX(':',[Details])-1), ' bytes in clustered index',''),' columns with potential size of ',' ')
+                      ELSE ''
+                    END
+
+/*Object names pass 1*/
+UPDATE ##PSBlitzIndexDiagnosis
+SET    [ObjectName] = CASE
+                        WHEN [CreateTSQL] LIKE 'CREATE%' THEN REPLACE(REPLACE(REPLACE(REPLACE([CreateTSQL], 'CREATE ', ''), 'UNIQUE ', ''), 'CLUSTERED ', ''), 'INDEX [', '')
+                        WHEN [CreateTSQL] LIKE 'ALTER%CONSTRAINT%' THEN REPLACE([CreateTSQL], 'ALTER TABLE [' + [DatabaseName] + '].['
+                                                                                              + REPLACE([TableName], '.', '].[')
+                                                                                              + '] ADD CONSTRAINT [', '')
+                        WHEN [Finding] LIKE '%Unindexed Foreign Keys' THEN REPLACE([Details], 'Foreign key [', '')
+                        ELSE ''
+                      END
+
+/*Object names pass 2*/
+UPDATE ##PSBlitzIndexDiagnosis
+SET    [ObjectName] = REPLACE(LEFT([ObjectName], CHARINDEX(' ', [ObjectName]) - 1), ']', '')
+WHERE  [ObjectName] <> ''
+
+/*More table names */
+UPDATE ##PSBlitzIndexDiagnosis
+SET    [TableName] = REPLACE([Details], 'Foreign key [' + [ObjectName] + '] on [', '')
+WHERE  [Finding] LIKE '%Unindexed Foreign Keys'
+       AND [TableName] = 'x'
+
+UPDATE ##PSBlitzIndexDiagnosis
+SET    [TableName] = REPLACE(LEFT([TableName], CHARINDEX(' ', [TableName]) - 1), ']', '')
+WHERE  [Finding] LIKE '%Unindexed Foreign Keys'
+       AND [TableName] LIKE '%]%' 
+
+
+
+/*Show me what you got*/
 /*Many NC indexes on a table*/
-
+IF EXISTS(SELECT 1 FROM   ##PSBlitzIndexDiagnosis
+WHERE  [Priority] = 10
+       AND [Finding] LIKE '%Many NC Indexes on a Single Table')
+BEGIN
 SELECT -3                                                            AS [Priority],
        N''                                                           AS [Finding],
        N''                                                           AS [DatabaseName],
@@ -65,7 +135,7 @@ WHERE  [Priority] = 10
        AND [Finding] LIKE '%Many NC Indexes on a Single Table'
 ORDER  BY [Priority] ASC,
           [NCIndexesCount] DESC; 
-
+END;
 
 /*Borderline duplicate indexes*/
 
@@ -310,7 +380,7 @@ SELECT -3 AS [Priority],
        N'' AS [Usage],
        N'' AS [Size],
        N'' AS [CreateTSQL],
-	   N'| DatabaseName | IndexName(IndexId) | Definition | Usage | Size |' AS [MarkdownInfo]
+	   N'| Database | Index(IndexId) | Definition | Usage | Size |' AS [MarkdownInfo]
 
 UNION ALL
 SELECT -2 AS [Priority],
@@ -356,7 +426,7 @@ SELECT -3                                                                       
        N''                                                                                 AS [Size],
        N''                                                                                 AS [CreateTSQL],
        NULL                                                                                AS [CXMaxBytes],
-       N'| DatabaseName | TableName | CXDefinition |  KeyColPotentialSize(Bytes) | Size |' AS [MarkdownInfo]
+       N'| Database | Table | CXName | KeyColumns |  KeyColPotentialSize(Bytes) | Size | Definition |' AS [MarkdownInfo]
 UNION ALL
 SELECT -2                                            AS [Priority],
        N''                                           AS [Finding],
@@ -368,11 +438,10 @@ SELECT -2                                            AS [Priority],
        N''                                           AS [Size],
        N''                                           AS [CreateTSQL],
        NULL                                          AS [CXMaxBytes],
-       N'| :---- | :---- | :---- |  :---- | :---- |' AS [MarkdownInfo]
+       N'| :---- | :---- | :---- |  ----: | ----: | ----: | :---- |' AS [MarkdownInfo]
 UNION ALL
 SELECT [Priority],
        [Finding],
-       -- LEFT([Details], CHARINDEX(' ', [Details])),
        [DatabaseName],
        [Details],
        [Definition],
@@ -380,12 +449,12 @@ SELECT [Priority],
        [Usage],
        [Size],
        [CreateTSQL],
-       CAST(LEFT(REPLACE(SUBSTRING([Details], CHARINDEX(' ', [Details]) + 1, LEN([Details])), 'columns with potential size of ', ''), CHARINDEX(' ', REPLACE(SUBSTRING([Details], CHARINDEX(' ', [Details]) + 1, LEN([Details])), 'columns with potential size of ', ''))) AS INT) AS [CXMaxBytes],
+       CAST(RIGHT([DataPrep],CHARINDEX(' ',REVERSE([DataPrep]))-1) AS INT)  AS [CXMaxBytes],
        '|' + [DatabaseName] + ' | '
-       + REPLACE(REPLACE(REPLACE([MoreInfo], 'EXEC dbo.sp_BlitzIndex @DatabaseName='''+[DatabaseName]+''', @SchemaName=''', ''), ''', @TableName=''', '.'), ''';', '')
-       + ' | ' + [Definition] + ' | '
-       + LEFT(REPLACE(SUBSTRING([Details], CHARINDEX(' ', [Details])+1, LEN([Details])), 'columns with potential size of ', ''), CHARINDEX(' ', REPLACE(SUBSTRING([Details], CHARINDEX(' ', [Details])+1, LEN([Details])), 'columns with potential size of ', '')))
-       + ' | ' + [Size] + ' | '                                                                                                                                                                                                                                                    AS [MarkdownInfo]
+       + [TableName]
+       + ' | ' + [ObjectName] + ' | ' 
+       + LEFT([DataPrep],CHARINDEX(' ',[DataPrep])-1) + ' | '+ RIGHT([DataPrep],CHARINDEX(' ',REVERSE([DataPrep]))-1)
+       + ' | '  +  [Size] + ' | ' + [Definition] + ' | '                                                                                                                                                                                                                                                    AS [MarkdownInfo]
 FROM   ##PSBlitzIndexDiagnosis
 WHERE  [Priority] = 150
        AND [Finding] LIKE N'%Wide Clustered Index (> 3 columns OR > 16 bytes)'
@@ -403,7 +472,7 @@ SELECT -3 AS [Priority],
        N'' AS [Usage],
        N'' AS [Size],
        N'' AS [CreateTSQL],
-	   N'| DatabaseName | FKMissingIndex |' AS [MarkdownInfo]
+	   N'| Database Name | FKMissingIndex |' AS [MarkdownInfo]
 
 UNION ALL
 SELECT -2 AS [Priority],
@@ -446,9 +515,11 @@ SELECT -3 AS [Priority],
        N'' AS [Usage],
        N'' AS [Size],
        N'' AS [CreateTSQL],
-	   NULL AS [Coulmns],
-	   NULL AS [MaxWidthBytes],
-	   N'| DatabaseName | FKMissingIndex |' AS [MarkdownInfo]
+	   N'' AS [DataPrep],
+	   NULL AS [TotalColumns],
+	   NULL AS [LOBColumns],
+	   NULL AS [MaxPossibleBytesPerRecord],
+	   N'| Database | Table | Total Columns | LOB Columns | Max Possible Bytes/Record | Usage | Size |' AS [MarkdownInfo]
 
 UNION ALL
 SELECT -2 AS [Priority],
@@ -460,9 +531,11 @@ SELECT -2 AS [Priority],
        N'' AS [Usage],
        N'' AS [Size],
        N'' AS [CreateTSQL],
-	   NULL AS [Coulmns],
-	   NULL AS [MaxWidthBytes],
-	   N'| :---- | :---- |' AS [MarkdownInfo]
+	   N'' AS [DataPrep],
+	   NULL AS [TotalColumns],
+	   NULL AS [LOBColumns],
+	   NULL AS [MaxPossibleBytesPerRecord],
+	   N'| :---- | :---- | :---- | :---- | ----: | :---- | :---- |' AS [MarkdownInfo]
 UNION ALL
 SELECT [Priority],
        [Finding],
@@ -473,19 +546,86 @@ SELECT [Priority],
        [Usage],
        [Size],
        [CreateTSQL],
-	   
-	   /*these are columns*/
-	   LEFT(
-	   REPLACE(REPLACE(REPLACE([Details],(LEFT([Details], CHARINDEX(' ',[Details])))+'has ',''), 'total columns with a max possible width of ', ''), ' bytes.','')
-	   ,CHARINDEX(' ',REPLACE(REPLACE(REPLACE([Details],(LEFT([Details], CHARINDEX(' ',[Details])))+'has ',''), 'total columns with a max possible width of ', ''), ' bytes.',''))) AS [Coulmns],
-	   /*these are max width bytes*/
-	   RIGHT(
-	   REPLACE(REPLACE(REPLACE([Details],(LEFT([Details], CHARINDEX(' ',[Details])))+'has ',''), 'total columns with a max possible width of ', ''), ' bytes.','')
-	   ,CHARINDEX(' ',REPLACE(REPLACE(REPLACE([Details],(LEFT([Details], CHARINDEX(' ',[Details])))+'has ',''), 'total columns with a max possible width of ', ''), ' bytes.',''))+1) AS [MaxWidthBytes],
-		'|'+ [DatabaseName] + ' | ' + LEFT([Details], CHARINDEX(' ',[Details])) + ' | '  AS [MarkdownInfo]
+       [DataPrep],
+       CAST(LEFT([DataPrep], CHARINDEX(' ', [DataPrep]) - 1) AS INT) AS [TotalColumns],
+       CASE
+         WHEN [DataPrep] LIKE '%.%' THEN REVERSE(LEFT(REVERSE([DataPrep]), CHARINDEX('.', REVERSE([DataPrep])) - 1))
+         ELSE ''
+       END                                                           AS [LOBColumns],
+       CAST(CASE
+              WHEN [DataPrep] LIKE '%.%' THEN REPLACE(LEFT(RIGHT([DataPrep], CHARINDEX(' ', REVERSE([DataPrep]))), CHARINDEX('.', RIGHT([DataPrep], CHARINDEX(' ', REVERSE([DataPrep]))))), '.', '')
+              ELSE RIGHT([DataPrep], CHARINDEX(' ', REVERSE([DataPrep])))
+            END AS BIGINT)                                           AS [MaxPossibleBytesPerRecord],
+       '|' + [DatabaseName] + ' | ' + [TableName] + ' | '
+       + LEFT([DataPrep], CHARINDEX(' ', [DataPrep]) - 1)
+       + ' | '
+       + CASE
+           WHEN [DataPrep] LIKE '%.%' THEN REVERSE(LEFT(REVERSE([DataPrep]), CHARINDEX('.', REVERSE([DataPrep])) - 1))
+           ELSE ''
+         END
+       + ' | '
+       + CASE
+           WHEN [DataPrep] LIKE '%.%' THEN REPLACE(LEFT(RIGHT([DataPrep], CHARINDEX(' ', REVERSE([DataPrep]))), CHARINDEX('.', RIGHT([DataPrep], CHARINDEX(' ', REVERSE([DataPrep]))))), '.', '')
+           ELSE RIGHT([DataPrep], CHARINDEX(' ', REVERSE([DataPrep])))
+         END
+       + ' | ' + [Usage] + ' | ' + [Size] + ' | '                    AS [MarkdownInfo]
 FROM   ##PSBlitzIndexDiagnosis
-WHERE [Priority] = 150
-AND 
-[Finding] LIKE N'%Wide Tables: 35+ cols or > 2000 non-LOB bytes'
-ORDER BY [Priority] ASC,
-[MaxWidthBytes] DESC;
+WHERE  [Priority] = 150
+       AND [Finding] LIKE N'%Wide Tables: 35+ cols or > 2000 non-LOB bytes'
+ORDER  BY [Priority] ASC,
+          [MaxPossibleBytesPerRecord] DESC,
+		  [DatabaseName] ASC; 
+
+/*Lots O NULLs*/
+SELECT -3 AS [Priority],
+       N'' AS [Finding],
+       N'' AS [DatabaseName],
+       N'' AS [Details],
+       N'' AS [Definition],
+       N'' AS [SecretColumns],
+       N'' AS [Usage],
+       N'' AS [Size],
+       N'' AS [CreateTSQL],
+	   N'' AS [DataPrep],
+	   NULL AS [TotalColumns],
+	   NULL AS [NULLableColumns],
+	   N'| Database | Table | Total Columns | NULLable Columns | Usage | Size |' AS [MarkdownInfo]
+
+UNION ALL
+SELECT -2 AS [Priority],
+       N'' AS [Finding],
+       N'' AS [DatabaseName],
+       N'' AS [Details],
+       N'' AS [Definition],
+       N'' AS [SecretColumns],
+       N'' AS [Usage],
+       N'' AS [Size],
+       N'' AS [CreateTSQL],
+	   N'' AS [DataPrep],
+	   NULL AS [TotalColumns],
+	   NULL AS [NULLableColumns],
+	   N'| :---- | :---- | ----: | ----: | :---- | :---- |' AS [MarkdownInfo]
+UNION ALL
+SELECT [Priority],
+       [Finding],
+       [DatabaseName],
+       [Details],
+       [Definition],
+       [SecretColumns],
+       [Usage],
+       [Size],
+       [CreateTSQL],
+       [DataPrep],
+       CAST(RIGHT([DataPrep], CHARINDEX(' ', REVERSE([DataPrep])) - 1) AS INT) AS [TotalColumns],
+       CAST(LEFT([DataPrep], CHARINDEX(' ', [DataPrep]) - 1) AS INT)           AS [NULLableColumns],
+       '|' + [DatabaseName] + ' | ' + [TableName] + ' | '
+       + RIGHT([DataPrep], CHARINDEX(' ', REVERSE([DataPrep])) - 1)
+       + ' | '
+       + LEFT([DataPrep], CHARINDEX(' ', [DataPrep]) - 1)
+       + ' | ' + [Usage] + ' | ' + [Size] + ' | '                              AS [MarkdownInfo]
+FROM   ##PSBlitzIndexDiagnosis
+WHERE  [Priority] = 200
+       AND [Finding] LIKE N'%Addicted to Nulls'
+ORDER  BY [Priority] ASC,
+          [NULLableColumns] DESC,
+          [DatabaseName] ASC; 
