@@ -9,7 +9,7 @@ IF OBJECT_ID(N'tempdb.dbo.##PSBlitzIndexDiagnosis', N'U') IS NOT NULL
 SELECT @XMLContent = CONVERT (XML, 
      REPLACE(REPLACE(REPLACE(BulkColumn, '<a href="#top">Jump to top</a>', ''), '<br>', ''), '<td></td>', '<td>x</td>')
                               , 2)
-FROM   OPENROWSET (BULK 'E:\VSQL\Backup\BlitzIndex_4_.html', SINGLE_BLOB) AS HTMLData;
+FROM   OPENROWSET (BULK 'C:\MSSQL\SQL2019_CS\Backup\BlitzIndex_4.html', SINGLE_BLOB) AS HTMLData;
 
 WITH XMLToTableCTE
      AS (SELECT xx.value('(./td/text())[1]', 'INT')            AS [Priority],
@@ -86,7 +86,7 @@ WHERE  [Finding] LIKE '%Unindexed Foreign Keys'
 
 
 /*Show me what you got*/
-/*Many NC indexes on a table*/
+/*10	Index Hoarder: Many NC Indexes on a Single Table*/
 IF EXISTS(SELECT 1 FROM   ##PSBlitzIndexDiagnosis
 WHERE  [Priority] = 10
        AND [Finding] LIKE '%Many NC Indexes on a Single Table')
@@ -113,7 +113,7 @@ SELECT -2                                           AS [Priority],
        N''                                          AS [Size],
        N''                                          AS [CreateTSQL],
        NULL                                         AS [NCIndexesCount],
-       N'| :---- | :---- | :---- | :---- | :---- |' AS [MarkdownInfo]
+       N'| :---- | :---- | :---- | :---- | ----: |' AS [MarkdownInfo]
 UNION ALL
 SELECT [Priority],
        [Finding],
@@ -137,7 +137,7 @@ ORDER  BY [Priority] ASC,
           [NCIndexesCount] DESC; 
 END;
 
-/*Borderline duplicate indexes*/
+/*30	Multiple Index Personalities: Borderline duplicate keys*/
 
 SELECT -3                                                            AS [Priority],
        N''                                                           AS [Finding],
@@ -161,7 +161,7 @@ SELECT -2                                           AS [Priority],
        N''                                          AS [Size],
        N''                                          AS [CreateTSQL],
        --NULL                                         AS [NCIndexesCount],
-       N'| :---- | :---- | :---- | :---- | :---- | :---- |' AS [MarkdownInfo]
+       N'| :---- | :---- | :---- | :---- | :---- | ----: |' AS [MarkdownInfo]
 UNION ALL
 SELECT [Priority],
        [Finding],
@@ -185,7 +185,7 @@ ORDER  BY [Priority] ASC,
 [Details] ASC; 
 
 
-/*Heaps with forwarded fetches*/
+/*100	Self Loathing Indexes: Heaps with Forwarded Fetches*/
 SELECT -3 AS [Priority],
        N'' AS [Finding],
        N'' AS [DatabaseName],
@@ -209,7 +209,7 @@ SELECT -2 AS [Priority],
        N'' AS [Size],
 	   NULL AS [ForwardedFetchesCount],
 	   N'' AS [RebuildTSQL],
-	   N'| :---- | :---- | :---- | ----: | :---- |' AS [MarkdownInfo]
+	   N'| :---- | :---- | :---- | ----: | ----: |' AS [MarkdownInfo]
 UNION ALL
 SELECT [Priority],
        [Finding],
@@ -229,7 +229,7 @@ AND [Finding] LIKE '%Heaps with Forwarded Fetches'
 ORDER BY [Priority] ASC,
 [ForwardedFetchesCount] DESC;
 
-/*Active heaps*/
+/*100	Self Loathing Indexes: L/M/S Active Heap*/
 
 SELECT -3 AS [Priority],
        N'' AS [Finding],
@@ -252,7 +252,7 @@ SELECT -2 AS [Priority],
        N'' AS [Usage],
        N'' AS [Size],
        N'' AS [CreateTSQL],
-	   N'| :---- | :---- | :---- | :---- | :---- |' AS [MarkdownInfo]
+	   N'| :---- | :---- | :---- | :---- | ----: |' AS [MarkdownInfo]
 UNION ALL
 SELECT [Priority],
        [Finding],
@@ -269,12 +269,12 @@ SELECT [Priority],
 	  + ' | ' + [Usage] + ' | ' + [Size] + ' | ' AS [MarkdownInfo]
 FROM   ##PSBlitzIndexDiagnosis
 WHERE [Priority] = 100
-AND [Finding] LIKE '%Active Heap'
+AND lower([Finding]) LIKE '%active heap'
 ORDER BY [Priority] ASC, 
        [Finding] ASC, [DatabaseName] ASC;
 
 
-/*Heap with a Nonclustered Primary Key*/ 
+/*100	Self Loathing Indexes: Heap with a Nonclustered Primary Key*/ 
 SELECT -3 AS [Priority],
        N'' AS [Finding],
        N'' AS [DatabaseName],
@@ -284,7 +284,7 @@ SELECT -3 AS [Priority],
        N'' AS [Usage],
        N'' AS [Size],
        N'' AS [CreateTSQL],
-	   N'| DatabaseName | HeapAndPKName | Definition | Usage | Size |' AS [MarkdownInfo]
+	   N'| Database | Table & PKName | Definition | Usage | Size |' AS [MarkdownInfo]
 
 UNION ALL
 SELECT -2 AS [Priority],
@@ -296,7 +296,7 @@ SELECT -2 AS [Priority],
        N'' AS [Usage],
        N'' AS [Size],
        N'' AS [CreateTSQL],
-	   N'| :---- | :---- | :---- |  :---- | :---- |' AS [MarkdownInfo]
+	   N'| :---- | :---- | :---- |  :---- | ----: |' AS [MarkdownInfo]
 UNION ALL
 SELECT [Priority],
        [Finding],
@@ -320,7 +320,7 @@ ORDER BY [Priority] ASC;
 
 
 
-/*Heaps With Deletes*/
+/*200	Self Loathing Indexes: Heaps with Deletes*/
 SELECT -3 AS [Priority],
        N'' AS [Finding],
        N'' AS [DatabaseName],
@@ -331,7 +331,7 @@ SELECT -3 AS [Priority],
        N'' AS [Size],
 	   NULL [DeletesCount],
 	   N'' AS [RebuildTSQL],
-	   N'| DatabaseName | HeapName | Usage | Deletes | Size |' AS [MarkdownInfo]
+	   N'| Database | Table | Usage | Deletes | Size |' AS [MarkdownInfo]
 
 UNION ALL
 SELECT -2 AS [Priority],
@@ -344,7 +344,7 @@ SELECT -2 AS [Priority],
        N'' AS [Size],
 	   NULL [DeletesCount],
 	   N'' AS [RebuildTSQL],
-	   N'| :---- | :---- | :---- | ----: | :---- |' AS [MarkdownInfo]
+	   N'| :---- | :---- | :---- | ----: | ----: |' AS [MarkdownInfo]
 UNION ALL
 SELECT [Priority],
        [Finding],
@@ -370,7 +370,7 @@ DESC;
 
 
 
-/*Wide Indexes */
+/*150	Index Hoarder: Borderline: Wide Indexes (7 or More Columns) */
 SELECT -3 AS [Priority],
        N'' AS [Finding],
        N'' AS [DatabaseName],
@@ -392,7 +392,7 @@ SELECT -2 AS [Priority],
        N'' AS [Usage],
        N'' AS [Size],
        N'' AS [CreateTSQL],
-	   N'| :---- | :---- | :---- |  :---- | :---- |' AS [MarkdownInfo]
+	   N'| :---- | :---- | :---- |  :---- | ----: |' AS [MarkdownInfo]
 UNION ALL
 SELECT [Priority],
        [Finding],
@@ -415,7 +415,7 @@ AND
 ORDER BY [Priority] ASC;
 
 
-/*Wide clustered Indexes */
+/*150	Index Hoarder: Wide Clustered Index (> 3 columns OR > 16 bytes) */
 SELECT -3                                                                                  AS [Priority],
        N''                                                                                 AS [Finding],
        N''                                                                                 AS [DatabaseName],
@@ -462,7 +462,7 @@ ORDER  BY [Priority] ASC,
           [CXMaxBytes] DESC; 
 
 
-/*Heap with a Nonclustered Primary Key*/ 
+/*150	Abnormal Psychology: Unindexed Foreign Keys*/ 
 SELECT -3 AS [Priority],
        N'' AS [Finding],
        N'' AS [DatabaseName],
@@ -504,8 +504,8 @@ AND
 ORDER BY [Priority] ASC,
 [DatabaseName] ASC;
 
-/*Wide tables */
-/*todo sort out Details with dbo.brs_table has 35 total columns with a max possible width of 1938 bytes.1 columns are LOB types.*/
+/*150	Index Hoarder: Wide Tables: 35+ cols or > 2000 non-LOB bytes */
+/**/
 SELECT -3 AS [Priority],
        N'' AS [Finding],
        N'' AS [DatabaseName],
@@ -535,7 +535,7 @@ SELECT -2 AS [Priority],
 	   NULL AS [TotalColumns],
 	   NULL AS [LOBColumns],
 	   NULL AS [MaxPossibleBytesPerRecord],
-	   N'| :---- | :---- | :---- | :---- | ----: | :---- | :---- |' AS [MarkdownInfo]
+	   N'| :---- | :---- | :---- | :---- | ----: | :---- | ----: |' AS [MarkdownInfo]
 UNION ALL
 SELECT [Priority],
        [Finding],
@@ -576,7 +576,7 @@ ORDER  BY [Priority] ASC,
           [MaxPossibleBytesPerRecord] DESC,
 		  [DatabaseName] ASC; 
 
-/*Lots O NULLs*/
+/*200	Index Hoarder: Addicted to Nulls*/
 SELECT -3 AS [Priority],
        N'' AS [Finding],
        N'' AS [DatabaseName],
@@ -604,7 +604,7 @@ SELECT -2 AS [Priority],
 	   N'' AS [DataPrep],
 	   NULL AS [TotalColumns],
 	   NULL AS [NULLableColumns],
-	   N'| :---- | :---- | ----: | ----: | :---- | :---- |' AS [MarkdownInfo]
+	   N'| :---- | :---- | ----: | ----: | :---- | ----: |' AS [MarkdownInfo]
 UNION ALL
 SELECT [Priority],
        [Finding],
