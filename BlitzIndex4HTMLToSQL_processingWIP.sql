@@ -143,6 +143,53 @@ ORDER  BY [Priority] ASC,
           [NCIndexesCount] DESC; 
 END;
 
+/*20	Multiple Index Personalities: Duplicate keys*/
+
+SELECT -3                                                            AS [Priority],
+       N''                                                           AS [Finding],
+       N''                                                           AS [DatabaseName],
+       N''                                                           AS [Details],
+       N''                                                           AS [Definition],
+       N''                                                           AS [SecretColumns],
+       N''                                                           AS [Usage],
+       N''                                                           AS [Size],
+       N''                                                           AS [CreateTSQL],
+       --NULL                                                          AS [NCIndexesCount],
+       N'| DatabaseName | IndexName | Definition | SecretColumns | Usage | Size |' AS [MarkdownInfo]
+UNION ALL
+SELECT -2                                           AS [Priority],
+       N''                                          AS [Finding],
+       N''                                          AS [DatabaseName],
+       N''                                          AS [Details],
+       N''                                          AS [Definition],
+       N''                                          AS [SecretColumns],
+       N''                                          AS [Usage],
+       N''                                          AS [Size],
+       N''                                          AS [CreateTSQL],
+       --NULL                                         AS [NCIndexesCount],
+       N'| :---- | :---- | :---- | :---- | :---- | ----: |' AS [MarkdownInfo]
+UNION ALL
+SELECT [Priority],
+       [Finding],
+       [DatabaseName],
+       [Details],
+       [Definition],
+       [SecretColumns],
+       [Usage],
+       [Size],
+       [CreateTSQL],
+        '|' + [DatabaseName] + ' | '
+       + LEFT([Details], CHARINDEX(' ', [Details]))
+       + ' | '
+       + [Definition] + ' | ' +CASE WHEN [SecretColumns] = 'x' THEN '' ELSE [SecretColumns] END
+       + ' | ' + [Usage] + ' | ' + [Size] + ' | '                                     AS [MarkdownInfo]
+FROM   ##PSBlitzIndexDiagnosis
+WHERE  [Priority] = 20
+       AND [Finding] LIKE '%duplicate keys'
+ORDER  BY [Priority] ASC,
+[DatabaseName] ASC,
+[Details] ASC; 
+
 /*30	Multiple Index Personalities: Borderline duplicate keys*/
 
 SELECT -3                                                            AS [Priority],
@@ -637,6 +684,37 @@ ORDER  BY [Priority] ASC,
           [DatabaseName] ASC;
 		  
 /*50 High Value Missing Indexs*/
+SELECT -3 AS [Priority],
+       N'' AS [Finding],
+       N'' AS [DatabaseName],
+       N'' AS [Details],
+       N'' AS [Definition],
+       N'' AS [SecretColumns],
+       N'' AS [Usage],
+       N'' AS [Size],
+       N'' AS [CreateTSQL],
+	   N'' AS [DataPrep],
+	   NULL AS [UsageCount],
+	   NULL AS [Impact%],
+	   NULL AS [AvgQueryCost],
+	   N'| Database | Table | Avg Query Cost | Potential Improvement| UsageCount | Size | CreateTSQL |' AS [MarkdownInfo]
+
+UNION ALL
+SELECT -2 AS [Priority],
+       N'' AS [Finding],
+       N'' AS [DatabaseName],
+       N'' AS [Details],
+       N'' AS [Definition],
+       N'' AS [SecretColumns],
+       N'' AS [Usage],
+       N'' AS [Size],
+       N'' AS [CreateTSQL],
+	   N'' AS [DataPrep],
+	   NULL AS [UsageCount],
+	   NULL AS [Impact%],
+	   NULL AS [AvgQueryCost],
+	   N'| :---- | :---- | ----: | ----: | ----: | ----: | :---- |' AS [MarkdownInfo]
+UNION ALL
 SELECT [Priority],
        [Finding],
        [DatabaseName],
@@ -647,10 +725,19 @@ SELECT [Priority],
        [Size],
        [CreateTSQL],
        [DataPrep],
-	   CAST(REPLACE(LEFT(DataPrep, CHARINDEX(';', DataPrep)-1),',','') AS BIGINT) AS UsageCount,
-CAST(REPLACE(LEFT(RIGHT(DataPrep, CHARINDEX(';', REVERSE(DataPrep))-1),CHARINDEX('%',RIGHT(DataPrep, CHARINDEX(';', REVERSE(DataPrep))-1))),'%','') AS NUMERIC(4,1)) AS [Impact%],
-CAST(RIGHT(DataPrep, CHARINDEX('%',REVERSE(DataPrep))-1) AS NUMERIC(20,4)) AS [AvgQueryCost]
+	   CAST(REPLACE(LEFT([DataPrep], CHARINDEX(';', [DataPrep])-1),',','') AS BIGINT) AS [UsageCount],
+CAST(REPLACE(LEFT(RIGHT([DataPrep], CHARINDEX(';', REVERSE(DataPrep))-1),CHARINDEX('%',RIGHT([DataPrep], CHARINDEX(';', REVERSE([DataPrep]))-1))),'%','') AS NUMERIC(4,1)) AS [Impact%],
+CAST(RIGHT([DataPrep], CHARINDEX('%',REVERSE([DataPrep]))-1) AS NUMERIC(20,4)) AS [AvgQueryCost],
+' | ' + [DatabaseName] + ' | ' + [TableName] + ' | ' + RIGHT([DataPrep], CHARINDEX('%',REVERSE([DataPrep]))-1) + ' | ' + LEFT(RIGHT([DataPrep], CHARINDEX(';', REVERSE(DataPrep))-1),CHARINDEX('%',RIGHT([DataPrep], CHARINDEX(';', REVERSE([DataPrep]))-1))) + ' | '
++ REPLACE(LEFT([DataPrep], CHARINDEX(';', [DataPrep])-1),',','')  + ' | ' + [Size] + ' | ' + REPLACE([CreateTSQL], N'  WITH (FILLFACTOR=100, ONLINE=?, SORT_IN_TEMPDB=?, DATA_COMPRESSION=?)', '')+ ' | '
+AS [MarkdownInfo]
 FROM ##PSBlitzIndexDiagnosis
 WHERE [Priority] = 50 
 AND [Finding] LIKE '%High Value Missing Index'
-ORDER BY [AvgQueryCost] DESC, [Impact%] DESC, UsageCount DESC;
+ORDER BY [Priority] ASC,  [AvgQueryCost] DESC, [Impact%] DESC, UsageCount DESC;
+
+/*100 NC index with High Writes:Reads*/
+SELECT * 
+FROM ##PSBlitzIndexDiagnosis
+WHERE [Priority] = 100
+AND [Finding] LIKE '%NC index with High Writes:Reads';
