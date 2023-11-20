@@ -11,8 +11,8 @@ INSERT INTO
 VALUES
 
 (20, 'Multiple Index Personalities: Duplicate keys', N'https://www.brentozar.com/go/duplicateindex','Duplicate keys','
-NonClustered indexes are very powerful in SQL Server. You want to have the right nonclustered indexes in place to help support queries reading table and make them faster– that has a lot of benefits, like reducing IO, CPU, and memory usage.
-But on the flip side, you can easily have too much of a good thing. Duplicate indexes take up double the room in SQL Server– and even if indexes are COMPLETELY identical, SQL Server may choose to use both of them.
+NonClustered indexes are very powerful in SQL Server. You want to have the right nonclustered indexes in place to help support queries reading table and make them faster - that has a lot of benefits, like reducing IO, CPU, and memory usage.
+But on the flip side, you can easily have too much of a good thing. Duplicate indexes take up double the room in SQL Server - and even if indexes are COMPLETELY identical, SQL Server may choose to use both of them.
 Duplicate indexes essentially cost you extra IO, CPU, and Memory, just the things you were trying to SAVE by adding nonclustered indexes! And that''s a little bit crazy.
 
 Duplicate keys
@@ -21,8 +21,8 @@ Indexes diagnosed with duplicate keys have exactly that: completely duplicate ke
 Duplicate keys are a red flag, but don''t jump into action too soon. Although indexes may have duplicate keys, there are important things to be aware about.
 
 - Are the duplicates both nonclustered?
-You may have a case where one of your duplicates is the clustered index— and that means that index is the data in the table itself. You clearly wouldn''t want to go dropping that index unless you want to lose the whole table.
-You can identify a clustered index easily– it is always index id 1, and the index_definition column will contain a "[CX]". For example this index is a clustered index and a primary key: [CX] [PK] [KEYS]  BusinessEntityID
+You may have a case where one of your duplicates is the clustered index - and that means that index is the data in the table itself. You clearly wouldn''t want to go dropping that index unless you want to lose the whole table.
+You can identify a clustered index easily - it is always index id 1, and the index_definition column will contain a "[CX]". For example this index is a clustered index and a primary key: [CX] [PK] [KEYS]  BusinessEntityID
 There are rare cases where it is useful to have a duplicate nonclustered index on the same column as the clustering key, but this is the exception rather than the rule.)
 - Is one of the duplicates serving as a primary key? One of your duplicates may be a primary key, in which case it is also likely worthy of special treatment. If an index is a primary key, the index_definition column will contain a "[PK]" (check out the example above).
 - Do the indexes have different included columns?  Included columns are listed in the index_definition column. They are prefixed by the term [INCLUDES]
@@ -36,15 +36,15 @@ Approximate duplicate keys start with the same key column, but do not have compl
 In many cases, indexes with borderline duplicate keys are very easy to combine into a single index. However, before you assume this is the right course of action, look closely at the index types and usage as we describe above. It may change your decisions.'),
 
 (70, 'Aggressive Under-Indexing: Total lock wait time > 5 minutes (row + page)', N'https://www.brentozar.com/go/AggressiveIndexes', 'Potential Under-Indexing: Total lock wait time > 5 minutes (row + page)', '
-If you''re diagnosed with this, check the details column returned by sp_BlitzIndex® for information on how many lock waits have been happening, what type they were, and the total and average duration.
+If you''re diagnosed with this, check the details column returned by sp_BlitzIndex - for information on how many lock waits have been happening, what type they were, and the total and average duration.
 When you see these waits, you should look at the table in more detail. Are there missing indexes that may be causing scans of the clustered index, and that''s where the blocking is?'),
 
 (70, 'Aggressive Indexes: Total lock wait time > 5 minutes (row + page)', N'https://www.brentozar.com/go/AggressiveIndexes','Total lock wait time > 5 minutes (row + page)','
-If you''re diagnosed with this, check the details column returned by sp_BlitzIndex® for information on how many lock waits have been happening, what type they were, and the total and average duration.
+If you''re diagnosed with this, check the details column returned by sp_BlitzIndex - for information on how many lock waits have been happening, what type they were, and the total and average duration.
 When you see these waits, you should look at the table in more detail. Are there missing indexes that may be causing scans of the clustered index, and that''s where the blocking is?'),
 
 (70, 'Aggressive Over-Indexing: Total lock wait time > 5 minutes (row + page)', N'https://www.brentozar.com/go/AggressiveIndexes','Potential Over-Indexing: Total lock wait time > 5 minutes (row + page)' ,'
-If you''re diagnosed with this, check the details column returned by sp_BlitzIndex® for information on how many lock waits have been happening, what type they were, and the total and average duration.
+If you''re diagnosed with this, check the details column returned by sp_BlitzIndex - for information on how many lock waits have been happening, what type they were, and the total and average duration.
 When you see these waits, you should look at the table in more detail. Are there missing indexes that may be causing scans of the clustered index, and that''s where the blocking is?'),
 
 (10, 'Index Hoarder: Many NC Indexes on a Single Table', N'https://www.brentozar.com/go/IndexHoarder','Many NC Indexes on a Single Table','
@@ -67,7 +67,7 @@ If fill factor is at 75%, then when SQL Server rebuilds an index it''s going to 
 
 There''s no single "right" setting for fill factor. On many indexes, 80% is fine.
 
-However, people frequently make the mistake of setting fill factor to low values like 80% across the board– even on indexes that do not fragment frequently. 
+However, people frequently make the mistake of setting fill factor to low values like 80% across the board - even on indexes that do not fragment frequently. 
 The best practice is to ONLY use a low fill factor on indexes where you know you need it. Setting a low fill factor on too many indexes will hurt your performance:
 - Wasted space in storage
 - Wasted space in memory (and therefore greater memory churn)
@@ -81,7 +81,7 @@ If fill factor is at 75%, then when SQL Server rebuilds an index it''s going to 
 
 There''s no single "right" setting for fill factor. On many indexes, 80% is fine.
 
-However, people frequently make the mistake of setting fill factor to low values like 80% across the board– even on indexes that do not fragment frequently. 
+However, people frequently make the mistake of setting fill factor to low values like 80% across the board - even on indexes that do not fragment frequently. 
 The best practice is to ONLY use a low fill factor on indexes where you know you need it. Setting a low fill factor on too many indexes will hurt your performance:
 - Wasted space in storage
 - Wasted space in memory (and therefore greater memory churn)
@@ -93,7 +93,7 @@ Review all indexes diagnosed with low fillfactor. Check how much they''re writte
 Imagine I''m updating a variable length field from something very short to something very long. There''s not enough room on the page holding that row for the new value. 
 In a heap, that row gets moved off to a new page and a "forwarding record pointer" is left in its place. 
 Every time I need to read that row, I have to go to its original address and then follow the forwarding record pointer to the new address. 
-Over time, lots of forwarded records create lots of random IO– and reads become both resource-intensive and time-intensive
+Over time, lots of forwarded records create lots of random IO - and reads become both resource-intensive and time-intensive
 
 The short-term solution for this is to rebuild the heaps more often. 
 Note that [Ola Hallengren''s Maintenance Solution](https://ola.hallengren.com/sql-server-index-and-statistics-maintenance.html) does not rebuild heaps, so you''ll have to address those separately.
@@ -105,7 +105,7 @@ The rule of thumb for SQL Server is to always create a clustered index on a tabl
 (If you can prove there''s a benefit, that''s great! Use it! But you''re the exception, not the norm.)'),
 
 (100, 'Self Loathing Indexes: Large Active Heap', N'https://www.brentozar.com/go/SelfLoathing','Active Heap(s)', '
-This diagnosis is for active heaps– they''re being read from or written to– but they haven''t had forwarded records read or deletes occur since restart.
+This diagnosis is for active heaps - they''re being read from or written to - but they haven''t had forwarded records read or deletes occur since restart.
 
 If you''ve got active heaps, give them a close look. 
 
@@ -121,7 +121,7 @@ The rule of thumb for SQL Server is to always create a clustered index on a tabl
 (If you can prove there''s a benefit, that''s great! Use it! But you''re the exception, not the norm.)'),
 
 (100, 'Self Loathing Indexes: Medium Active Heap',N'https://www.brentozar.com/go/SelfLoathing','Active Heap(s)', '
-This diagnosis is for active heaps– they''re being read from or written to– but they haven''t had forwarded records read or deletes occur since restart.
+This diagnosis is for active heaps - they''re being read from or written to - but they haven''t had forwarded records read or deletes occur since restart.
 
 If you''ve got active heaps, give them a close look. 
 
@@ -137,7 +137,7 @@ The rule of thumb for SQL Server is to always create a clustered index on a tabl
 (If you can prove there''s a benefit, that''s great! Use it! But you''re the exception, not the norm.)'),
 
 (100, 'Self Loathing Indexes: Small Active Heap',N'https://www.brentozar.com/go/SelfLoathing','Active Heap(s)', '
-This diagnosis is for active heaps– they''re being read from or written to– but they haven''t had forwarded records read or deletes occur since restart.
+This diagnosis is for active heaps - they''re being read from or written to - but they haven''t had forwarded records read or deletes occur since restart.
 
 If you''ve got active heaps, give them a close look. 
 
@@ -173,7 +173,7 @@ You want to take it as a starting point and then decide: is this good advice? Wh
 
 Here are some of the gotchas that come with missing index recommendations:
 
-They''re super specific– and they don''t consider each other. If you follow the missing index recommendations exactly, you''re very likely to create indexes with duplicate keys and /or duplicate include values.
+They''re super specific - and they don''t consider each other. If you follow the missing index recommendations exactly, you''re very likely to create indexes with duplicate keys and /or duplicate include values.
 They don''t consider existing indexes on the tables. There may be an existing index which is just like the missing index, but it needs one added included column. 
 The missing index recommendations will just tell you the exact index that would be perfect for them.
 Sometimes it will recommend an index that already exists.
@@ -223,7 +223,7 @@ But generally speaking if you make a practice of this, your database is going to
 (150, 'Index Hoarder: Wide Clustered Index (> 3 columns OR > 16 bytes)',N'https://www.brentozar.com/go/IndexHoarder','Wide Clustered Index (> 3 columns OR > 16 bytes)','
 Your nonclustered indexes have a secret: they''re hiding the clustering key of the table as a special type of included column! 
 This is functionally necessary so that you can quickly use a nonclustered index to look up related index in the clustered index.  
-(The one exception to this is if your table does not have a clustered index– in that case the nonclustered indexes hide something called a RID, or row identifier instead.)
+(The one exception to this is if your table does not have a clustered index - in that case the nonclustered indexes hide something called a RID, or row identifier instead.)
 
 This means that if you create a wide clustering key on a table with many columns, every nonclustered index you create on that table is going to contain every column that is in the clustering key.
 
@@ -264,20 +264,20 @@ If your clustered indexes aren''t unique, take a very close look at why that''s 
 ### Unused NC index
 
 An unused NC index is a sad thing. Or is it?
-To interpret this information, you need to know how usage is calculated. Index usage information is persisted since SQL Server''s restart (there''s a gotcha on SQL Server 2012– see below).  But of course,  if I create a new index, its usage is only going to be persisted after the time it was created.
+To interpret this information, you need to know how usage is calculated. Index usage information is persisted since SQL Server''s restart (there''s a gotcha on SQL Server 2012 - see below).  But of course,  if I create a new index, its usage is only going to be persisted after the time it was created.
 You may also have cases where indexes are only used at special times, but are still very important. (Think end-of-quarter and end-of-year reports  run by the CFO, CTO, and other acronyms.)
 Unused indexes may also be performing other important functions, like serving as primary keys. If an index is a primary key, the index_definition column will contain a "[PK]", like the index in this example: [PK] [KEYS]  BusinessEntityID'),
 
 (250,'Feature-Phobic Indexes: No Indexes Use Includes','https://www.brentozar.com/go/IndexFeatures','', '
 "Included columns" were introduced as a feature in SQL Server 2005. An included column exists in the "leaf" of an index, but isn''t present in the key columns. 
-Using included columns can help you "cover" queries with an index– without inflating the key of that index.
+Using included columns can help you "cover" queries with an index - without inflating the key of that index.
 
 Like any good thing, you don''t want to overuse included columns. That just leads you to tons of wide indexes, which is another disorder in itself.
 
 But index tuning and management is all about balance. And if you''re not using included columns at all by now (hey, it''s been HOW MANY years since 2005?), then I''m guessing you don''t even know what you''re missing.'),
 
 (250,'Feature-Phobic Indexes: Few Indexes Use Includes','https://www.brentozar.com/go/IndexFeatures','Few Indexes Use Includes','
-There''s no hard and fast rule that I should use includes on 3% or more of my indexes — not at all!
+There''s no hard and fast rule that I should use includes on 3% or more of my indexes  - not at all!
 
 However, I might have a database that has 700 indexes, and one has includes. It wouldn''t be diagnosed as "no indexes use includes," but are the databases'' indexes quite possibly out of balance? 
 When this comes up, take a look at your indexing practices and make sure you''re taking advantage of all the options.'),
@@ -294,7 +294,7 @@ Think creating a filtered index or indexed view is super-low risk? Think again!
 If you research these features and find a great use case, be careful when you implement them against a database for the first time. 
 When you create either a filtered index or an indexed view, writes to the table may fail if the application is using different SET options than were in place when the filtered index or indexed view was created. 
 See [SET Options That Affect Results](https://learn.microsoft.com/en-us/previous-versions/sql/sql-server-2008-r2/ms175088(v=sql.105)) for more information. 
-For this reason we recommend always creating indexes in a development environment and testing applications first when possible– especially with filtered indexes or indexed views.'),
+For this reason we recommend always creating indexes in a development environment and testing applications first when possible - especially with filtered indexes or indexed views.'),
 
 (250,'Feature-Phobic Indexes: Potential Filtered Index (Based on Column Name)','https://www.brentozar.com/go/IndexFeatures','Potential Filtered Index (Based on Column Name)', '
 This diagnosis outlines that the identified index could be a potential candidate to be a filtered index based on key column names (is%, %archive%, %active%, %flag%) '),
@@ -306,7 +306,7 @@ If you didn''t intend to have them disabled permanently then this is your chance
 
 (200, 'Self Loathing Indexes: Heaps with Deletes', N'https://www.brentozar.com/go/SelfLoathing','Heaps with Deletes', '
 When you delete data from a heap it does not work the same was as if you deleted the data from an index (either clustered or nonclustered). 
-Let''s say that I have a 2 GB heap and I delete half the rows in it– which coincidentally were on exactly half of the pages allocated to the index. 
+Let''s say that I have a 2 GB heap and I delete half the rows in it - which coincidentally were on exactly half of the pages allocated to the index. 
 If I do not use a special high level lock, those pages still stay allocated to the heap. They can be reused by that heap, but they have to hang around empty, just in case. Captive.
 
 This leads to SQL Server having to unnecessarily read empty pages to retrieve actual data from said heap(s). 
