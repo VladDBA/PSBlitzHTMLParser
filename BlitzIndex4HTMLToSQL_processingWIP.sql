@@ -9,7 +9,7 @@ IF OBJECT_ID(N'tempdb.dbo.##PSBlitzIndexDiagnosis', N'U') IS NOT NULL
 SELECT @XMLContent = CONVERT (XML, 
      REPLACE(REPLACE(REPLACE(BulkColumn, '<a href="#top">Jump to top</a>', ''), '<br>', ''), '<td></td>', '<td>x</td>')
                               , 2)
-FROM   OPENROWSET (BULK 'E:\VSQL\Backup\BlitzIndex_4_new.html', SINGLE_BLOB) AS HTMLData;
+FROM   OPENROWSET (BULK 'E:\VSQL\Backup\BlitzIndex_4.html', SINGLE_BLOB) AS HTMLData;
 
 WITH XMLToTableCTE
      AS (SELECT xx.value('(./td/text())[1]', 'INT')            AS [Priority],
@@ -1640,3 +1640,11 @@ FROM   ##PSBlitzIndexDiagnosis
 WHERE  [Priority] = 150
        AND [Finding] LIKE '%Non-Unique Clustered Index';
 END;
+
+/*Collation mismatch*/
+SELECT REPLACE([Finding],'Abnormal Psychology: ','') AS [Finding], DatabaseName, Details, 
+REPLACE([SecretColumns],'x','') as [SecretColumns], [Usage], 
+REPLACE(LEFT([Size], CHARINDEX(' ',[Size] )),',','') AS NumRows,
+REPLACE([Size], ',','') AS [Size], [Definition] FROM   ##PSBlitzIndexDiagnosis
+WHERE  [Priority] = 150
+       AND [Finding] LIKE '%Column Collation Does Not Match Database Collation'; 
