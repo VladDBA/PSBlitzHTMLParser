@@ -5,7 +5,13 @@ IF OBJECT_ID(N'tempdb.dbo.##PSBlitzIndexDiagnosis', N'U') IS NOT NULL
   BEGIN
       DROP TABLE ##PSBlitzIndexDiagnosis;
   END;
-
+/*
+to do: 
+improve markdown formatting
+streamline
+add more findings
+try to generate the final document from here without having to copy paste 
+*/
 SELECT @XMLContent = CONVERT (XML, 
      REPLACE(REPLACE(REPLACE(BulkColumn, '<a href="#top">Jump to top</a>', ''), '<br>', ''), '<td></td>', '<td>x</td>')
                               , 2)
@@ -21,7 +27,8 @@ WITH XMLToTableCTE
                 xx.value('(./td/text())[7]', 'NVARCHAR(MAX)')  AS [Usage],
                 xx.value('(./td/text())[8]', 'NVARCHAR(MAX)')  AS [Size],
                 xx.value('(./td/text())[9]', 'NVARCHAR(MAX)')  AS [MoreInfo],
-                xx.value('(./td/text())[10]', 'NVARCHAR(MAX)') AS [CreateTSQL]
+                xx.value('(./td/text())[10]', 'NVARCHAR(MAX)') AS [CreateTSQL],
+                xx.value('(./td/text())[11]', 'NVARCHAR(200)') AS [SamplePlanFile]
          FROM   (VALUES(@XMLContent)) t1(x)
                 CROSS APPLY x.nodes('//table[1]/tr[position()>1]') t2(xx))
 SELECT [Priority],
@@ -36,9 +43,11 @@ SELECT [Priority],
        [CreateTSQL],
 	   REPLACE(REPLACE(REPLACE([MoreInfo], 'EXEC dbo.sp_BlitzIndex @DatabaseName='''+[DatabaseName]+''', @SchemaName=''', ''), ''', @TableName=''', '.'), ''';', '') AS [TableName],
 	   CAST('' AS NVARCHAR(300)) AS [DataPrep],
-	   CAST('' AS NVARCHAR(MAX)) AS [ObjectName]
+	   CAST('' AS NVARCHAR(MAX)) AS [ObjectName],
+	   [SamplePlanFile]
 INTO ##PSBlitzIndexDiagnosis
 FROM   XMLToTableCTE
+--WHERE [DatabaseName] LIKE 'Something%'
 ORDER  BY [Priority] ASC,[Finding]
 ASC;
 GO
@@ -114,7 +123,7 @@ SELECT -6                                                            AS [Priorit
        N''                                                           AS [Size],
        N''                                                           AS [CreateTSQL],
        NULL                                                          AS [NCIndexesCount],
-	   '### '+ [SanitizedFInding] AS [MarkdownInfo]
+	   '## '+ [SanitizedFInding] AS [MarkdownInfo]
 	   FROM ##BlitzIndexFindings
 	   WHERE [Priority] = 10
        AND [Finding] LIKE '%Many NC Indexes on a Single Table'
@@ -146,7 +155,7 @@ SELECT -4                                                            AS [Priorit
        NULL                                                          AS [NCIndexesCount],
        CASE WHEN COUNT(*) >10 THEN ' - Results with more than 10 records can be found in the second half of this document, click [here](#manyncix) to jump to the list.
 	   <a name="manyncix"></a>
-	   ### Many NC Indexes on a Single Table'
+	   ## Many NC Indexes on a Single Table'
 	   ELSE '' END AS [MarkdownInfo]
 FROM   ##PSBlitzIndexDiagnosis
 WHERE  [Priority] = 10
@@ -213,7 +222,7 @@ SELECT -6                                                            AS [Priorit
        N''                                                           AS [Usage],
        N''                                                           AS [Size],
        N''                                                           AS [CreateTSQL],
-       '### '+ [SanitizedFInding] AS [MarkdownInfo]
+       '## '+ [SanitizedFInding] AS [MarkdownInfo]
 	   FROM ##BlitzIndexFindings
 WHERE  [Priority] = 20
        AND [Finding] LIKE '%duplicate keys'
@@ -243,7 +252,7 @@ SELECT -4                                                            AS [Priorit
        N''                                                           AS [CreateTSQL],
        CASE WHEN COUNT(*) >10 THEN ' - Results with more than 10 records can be found in the second half of this document, click [here](#dupekeys) to jump to the list.
 	   <a name="dupekeys"></a>
-	   ### Duplicate keys'
+	   ## Duplicate keys'
 	   ELSE '' END AS [MarkdownInfo]
 FROM   ##PSBlitzIndexDiagnosis
 WHERE  [Priority] = 20
@@ -307,7 +316,7 @@ SELECT -6                                                            AS [Priorit
        N''                                                           AS [Usage],
        N''                                                           AS [Size],
        N''                                                           AS [CreateTSQL],
-       '### '+ [SanitizedFInding] AS [MarkdownInfo]
+       '## '+ [SanitizedFInding] AS [MarkdownInfo]
 	   FROM ##BlitzIndexFindings
 WHERE  [Priority] = 30
        AND [Finding] LIKE '%Borderline duplicate keys'
@@ -337,7 +346,7 @@ SELECT -4                                                            AS [Priorit
        N''                                                           AS [CreateTSQL],
       CASE WHEN COUNT(*) >10 THEN ' - Results with more than 10 records can be found in the second half of this document, click [here](#approxdupekeys) to jump to the list.
 	   <a name="approxdupekeys"></a>
-	   ### Approximate duplicate keys'
+	   ## Approximate duplicate keys'
 	   ELSE '' END AS [MarkdownInfo]
 	   FROM ##PSBlitzIndexDiagnosis
 WHERE  [Priority] = 30
@@ -407,7 +416,7 @@ SELECT -6 AS [Priority],
 	   NULL AS [UsageCount],
 	   NULL AS [Impact%],
 	   NULL AS [AvgQueryCost],
-	   '### '+ [SanitizedFInding] AS [MarkdownInfo]
+	   '## '+ [SanitizedFInding] AS [MarkdownInfo]
 	   FROM ##BlitzIndexFindings
 WHERE [Priority] = 50 
 AND [Finding] LIKE '%High Value Missing Index'
@@ -446,7 +455,7 @@ SELECT -4 AS [Priority],
 	   NULL AS [AvgQueryCost],
 	   CASE WHEN COUNT(*) >10 THEN ' - Results with more than 10 records can be found in the second half of this document, click [here](#missingix) to jump to the list.
 	   <a name="missingix"></a>
-	   ### High Value Missing Index'
+	   ## High Value Missing Index'
 	   ELSE '' END AS [MarkdownInfo]
 FROM ##PSBlitzIndexDiagnosis
 WHERE [Priority] = 50 
@@ -466,7 +475,7 @@ SELECT -3 AS [Priority],
 	   NULL AS [UsageCount],
 	   NULL AS [Impact%],
 	   NULL AS [AvgQueryCost],
-	   N'| Database | Table | Avg Query Cost | Potential Improvement| UsageCount | Size | CreateTSQL |' AS [MarkdownInfo]
+	   N'| Database | Table | Avg Query Cost | Potential Improvement| UsageCount | Size | Sample Plan | CreateTSQL |' AS [MarkdownInfo]
 
 UNION ALL
 SELECT -2 AS [Priority],
@@ -482,7 +491,7 @@ SELECT -2 AS [Priority],
 	   NULL AS [UsageCount],
 	   NULL AS [Impact%],
 	   NULL AS [AvgQueryCost],
-	   N'| :---- | :---- | ----: | ----: | ----: | ----: | :---- |' AS [MarkdownInfo]
+	   N'| :---- | :---- | ----: | ----: | ----: | ----: | :---- | :---- |' AS [MarkdownInfo]
 UNION ALL
 SELECT [Priority],
        [Finding],
@@ -498,7 +507,7 @@ SELECT [Priority],
 CAST(REPLACE(LEFT(RIGHT([DataPrep], CHARINDEX(';', REVERSE(DataPrep))-1),CHARINDEX('%',RIGHT([DataPrep], CHARINDEX(';', REVERSE([DataPrep]))-1))),'%','') AS NUMERIC(4,1)) AS [Impact%],
 CAST(RIGHT([DataPrep], CHARINDEX('%',REVERSE([DataPrep]))-1) AS NUMERIC(20,4)) AS [AvgQueryCost],
 ' | ' + [DatabaseName] + ' | ' + [TableName] + ' | ' + RIGHT([DataPrep], CHARINDEX('%',REVERSE([DataPrep]))-1) + ' | ' + LEFT(RIGHT([DataPrep], CHARINDEX(';', REVERSE(DataPrep))-1),CHARINDEX('%',RIGHT([DataPrep], CHARINDEX(';', REVERSE([DataPrep]))-1))) + ' | '
-+ REPLACE(LEFT([DataPrep], CHARINDEX(';', [DataPrep])-1),',','')  + ' | ' + [Size] + ' | ' + REPLACE([CreateTSQL], N'  WITH (FILLFACTOR=100, ONLINE=?, SORT_IN_TEMPDB=?, DATA_COMPRESSION=?)', '')+ ' | '
++ REPLACE(LEFT([DataPrep], CHARINDEX(';', [DataPrep])-1),',','')  + ' | ' + [Size] + ' | ' + [SamplePlanFile] + ' | ' +REPLACE([CreateTSQL], N' WITH (FILLFACTOR=100, ONLINE=?, SORT_IN_TEMPDB=?, DATA_COMPRESSION=?)', '')+ ' | '
 AS [MarkdownInfo]
 FROM ##PSBlitzIndexDiagnosis
 WHERE [Priority] = 50 
@@ -521,7 +530,7 @@ SELECT -6 AS [Priority],
        N'' AS [Size],
 	   NULL AS [ForwardedFetchesCount],
 	   N'' AS [RebuildTSQL],
-	  '### '+ [SanitizedFInding] AS [MarkdownInfo]
+	  '## '+ [SanitizedFInding] AS [MarkdownInfo]
 	   FROM ##BlitzIndexFindings
 WHERE [Priority] = 100
 AND [Finding] LIKE '%Heaps with Forwarded Fetches'
@@ -555,7 +564,7 @@ SELECT -4 AS [Priority],
 	   N'' AS [RebuildTSQL],
 	   CASE WHEN COUNT(*) >10 THEN ' - Results with more than 10 records can be found in the second half of this document, click [here](#fwdfetch) to jump to the list.
 	   <a name="fwdfetch"></a>
-	   ### Heaps with Forwarded Fetches '
+	   ## Heaps with Forwarded Fetches '
 	   ELSE '' END AS [MarkdownInfo]
 FROM   ##PSBlitzIndexDiagnosis
 WHERE [Priority] = 100
@@ -572,7 +581,7 @@ SELECT -3 AS [Priority],
        N'' AS [Size],
 	   NULL AS [ForwardedFetchesCount],
 	   N'' AS [RebuildTSQL],
-	   N'| DatabaseName | HeapName | Usage | ForwardedFetches | Size |' AS [MarkdownInfo]
+	   N'| DatabaseName | HeapName | Usage | ForwardedFetches/Day | Size |' AS [MarkdownInfo]
 
 UNION ALL
 SELECT -2 AS [Priority],
@@ -622,7 +631,7 @@ SELECT -6 AS [Priority],
        N'' AS [Size],
 	   NULL [DeletesCount],
 	   N'' AS [RebuildTSQL],
-	   '### '+ [SanitizedFInding] AS [MarkdownInfo]
+	   '## '+ [SanitizedFInding] AS [MarkdownInfo]
 	   FROM ##BlitzIndexFindings
 	   WHERE [Priority] = 200
 AND [Finding] LIKE N'%Heaps with Deletes'
@@ -655,7 +664,7 @@ SELECT -4 AS [Priority],
 	   N'' AS [RebuildTSQL],
 	   CASE WHEN COUNT(*) >10 THEN ' - Results with more than 10 records can be found in the second half of this document, click [here](#heapsdel) to jump to the list.
 	   <a name="heapsdel"></a>
-	   ### Heaps with Deletes '
+	   ## Heaps with Deletes '
 	   ELSE '' END AS [MarkdownInfo]
 	   FROM   ##PSBlitzIndexDiagnosis
 WHERE [Priority] = 200
@@ -724,7 +733,7 @@ SELECT DISTINCT -6 AS [Priority],
        N'' AS [Usage],
        N'' AS [Size],
        N'' AS [CreateTSQL],
-	   '### '+ [SanitizedFInding] AS [MarkdownInfo]
+	   '## '+ [SanitizedFInding] AS [MarkdownInfo]
 	   FROM ##BlitzIndexFindings
 	   WHERE [Priority] = 100
 AND lower([Finding]) LIKE '%active heap'
@@ -755,7 +764,7 @@ SELECT DISTINCT -4 AS [Priority],
        N'' AS [CreateTSQL],
 	   CASE WHEN COUNT(*) >10 THEN ' - Results with more than 10 records can be found in the second half of this document, click [here](#activeheaps) to jump to the list.
 	   <a name="activeheaps"></a>
-	   ### Active Heaps '
+	   ## Active Heaps '
 	   ELSE '' END AS [MarkdownInfo]
 	   FROM ##PSBlitzIndexDiagnosis
 	   WHERE [Priority] = 100
@@ -819,7 +828,7 @@ SELECT -6 AS [Priority],
        N'' AS [Usage],
        N'' AS [Size],
        N'' AS [CreateTSQL],
-	   '### '+ [SanitizedFInding] AS [MarkdownInfo]
+	   '## '+ [SanitizedFInding] AS [MarkdownInfo]
 	   FROM ##BlitzIndexFindings
 	   WHERE [Priority] = 100 AND 
 [Finding] LIKE N'%Heap with a Nonclustered Primary Key'
@@ -851,7 +860,7 @@ SELECT -4 AS [Priority],
        N'' AS [CreateTSQL],
 	  CASE WHEN COUNT(*) >10 THEN ' - Results with more than 10 records can be found in the second half of this document, click [here](#heapswithncpk) to jump to the list.
 	   <a name="heapswithncpk"></a>
-	   ### Heap with a Nonclustered Primary Key '
+	   ## Heap with a Nonclustered Primary Key '
 	   ELSE '' END AS [MarkdownInfo]
 	   FROM   ##PSBlitzIndexDiagnosis
 	   WHERE [Priority] = 100 AND 
@@ -915,7 +924,7 @@ SELECT -6 AS [Priority],
        N'' AS [Usage],
        N'' AS [Size],
        N'' AS [CreateTSQL],
-	   '### '+ [SanitizedFInding] AS [MarkdownInfo]
+	   '## '+ [SanitizedFInding] AS [MarkdownInfo]
 	   FROM ##BlitzIndexFindings
 	   WHERE [Priority] = 100
 AND [Finding] LIKE '%NC index with High Writes:Reads'
@@ -946,7 +955,7 @@ SELECT -4 AS [Priority],
        N'' AS [CreateTSQL],
 	   CASE WHEN COUNT(*) >10 THEN ' - Results with more than 10 records can be found in the second half of this document, click [here](#nchighwr) to jump to the list.
 	   <a name="nchighwr"></a>
-	   ### NC index with High Writes:Reads '
+	   ## NC index with High Writes:Reads '
 	   ELSE '' END AS [MarkdownInfo]
 FROM   ##PSBlitzIndexDiagnosis
 WHERE [Priority] = 100
@@ -1010,7 +1019,7 @@ SELECT -6 AS [Priority],
        N'' AS [Size],
        N'' AS [CreateTSQL],
 	   NULL AS [Cols],
-	   '### '+ [SanitizedFInding] AS [MarkdownInfo]
+	   '## '+ [SanitizedFInding] AS [MarkdownInfo]
 	   FROM ##BlitzIndexFindings
 	   WHERE [Priority] = 150 AND 
 [Finding] LIKE N'%Wide Indexes (7 or More Columns)'
@@ -1044,7 +1053,7 @@ SELECT -4 AS [Priority],
 	   NULL AS [Cols],
 	   CASE WHEN COUNT(*) >10 THEN ' - Results with more than 10 records can be found in the second half of this document, click [here](#wideix) to jump to the list.
 	   <a name="wideix"></a>
-	   ### Wide Indexes (7 or More Columns) '
+	   ## Wide Indexes (7 or More Columns) '
 	   ELSE '' END AS [MarkdownInfo]
 	   FROM   ##PSBlitzIndexDiagnosis
 WHERE [Priority] = 150 AND 
@@ -1117,7 +1126,7 @@ SELECT -6                                                                       
        N''                                                                                 AS [Size],
        N''                                                                                 AS [CreateTSQL],
        NULL                                                                                AS [CXMaxBytes],
-       '### '+ [SanitizedFInding] AS [MarkdownInfo]
+       '## '+ [SanitizedFInding] AS [MarkdownInfo]
 	   FROM ##BlitzIndexFindings
 	   WHERE  [Priority] = 150
        AND [Finding] LIKE N'%Wide Clustered Index (> 3 columns OR > 16 bytes)'
@@ -1151,7 +1160,7 @@ SELECT -4                                                                       
        NULL                                                                                AS [CXMaxBytes],
        CASE WHEN COUNT(*) >10 THEN ' - Results with more than 10 records can be found in the second half of this document, click [here](#widecx) to jump to the list.
 	   <a name="widecx"></a>
-	   ### Wide Clustered Index (> 3 columns OR > 16 bytes) '
+	   ## Wide Clustered Index (> 3 columns OR > 16 bytes) '
 	   ELSE '' END AS [MarkdownInfo]
 	   FROM   ##PSBlitzIndexDiagnosis
 WHERE  [Priority] = 150
@@ -1218,7 +1227,7 @@ SELECT -6 AS [Priority],
        N'' AS [Usage],
        N'' AS [Size],
        N'' AS [CreateTSQL],
-	   '### '+ [SanitizedFInding] AS [MarkdownInfo]
+	   '## '+ [SanitizedFInding] AS [MarkdownInfo]
 	   FROM ##BlitzIndexFindings
 	   WHERE  [Priority] = 150 AND 
 [Finding] LIKE N'%Unindexed Foreign Keys'
@@ -1250,7 +1259,7 @@ SELECT -4 AS [Priority],
        N'' AS [CreateTSQL],
 	   CASE WHEN COUNT(*) >10 THEN ' - Results with more than 10 records can be found in the second half of this document, click [here](#noixfk) to jump to the list.
 	   <a name="noixfk"></a>
-	   ### Unindexed Foreign Keys '
+	   ## Unindexed Foreign Keys '
 	   ELSE '' END AS [MarkdownInfo]
 	   FROM   ##PSBlitzIndexDiagnosis
 WHERE  [Priority] = 150 AND 
@@ -1316,7 +1325,7 @@ SELECT -6 AS [Priority],
 	   NULL AS [TotalColumns],
 	   NULL AS [LOBColumns],
 	   NULL AS [MaxPossibleBytesPerRecord],
-	   '### '+ [SanitizedFInding] AS [MarkdownInfo]
+	   '## '+ [SanitizedFInding] AS [MarkdownInfo]
 	   FROM ##BlitzIndexFindings
 	   WHERE  [Priority] = 150
        AND [Finding] LIKE N'%Wide Tables: 35+ cols or > 2000 non-LOB bytes'
@@ -1356,7 +1365,7 @@ SELECT -4 AS [Priority],
 	   NULL AS [MaxPossibleBytesPerRecord],
 	   CASE WHEN COUNT(*) >10 THEN ' - Results with more than 10 records can be found in the second half of this document, click [here](#widetab) to jump to the list.
 	   <a name="widetab"></a>
-	   ### Wide Tables: 35+ cols or > 2000 non-LOB bytes '
+	   ## Wide Tables: 35+ cols or > 2000 non-LOB bytes '
 	   ELSE '' END AS [MarkdownInfo]
 	   FROM   ##PSBlitzIndexDiagnosis
 WHERE  [Priority] = 150
@@ -1451,7 +1460,7 @@ SELECT -6 AS [Priority],
 	   N'' AS [DataPrep],
 	   NULL AS [TotalColumns],
 	   NULL AS [NULLableColumns],
-	   '### '+ [SanitizedFInding] AS [MarkdownInfo]
+	   '## '+ [SanitizedFInding] AS [MarkdownInfo]
 	   FROM ##BlitzIndexFindings
 	   WHERE  [Priority] = 200
        AND [Finding] LIKE N'%Addicted to Nulls'
@@ -1489,7 +1498,7 @@ SELECT -4 AS [Priority],
 	   NULL AS [NULLableColumns],
 	   CASE WHEN COUNT(*) >10 THEN ' - Results with more than 10 records can be found in the second half of this document, click [here](#manynulls) to jump to the list.
 	   <a name="manynulls"></a>
-	   ### Tables with a high NULLable column ratio '
+	   ## Tables with a high NULLable column ratio '
 	   ELSE '' END AS [MarkdownInfo]
 	   FROM  ##PSBlitzIndexDiagnosis
 WHERE  [Priority] = 200
@@ -1564,7 +1573,7 @@ SELECT -6 AS [Priority],
        N'' AS [Usage],
        N'' AS [Size],
        N'' AS [CreateTSQL],
-	   '### '+ [SanitizedFInding] AS [MarkdownInfo]
+	   '## '+ [SanitizedFInding] AS [MarkdownInfo]
 	   FROM ##BlitzIndexFindings
 	   WHERE  [Priority] = 150
        AND [Finding] LIKE '%Non-Unique Clustered Index'
@@ -1596,7 +1605,7 @@ SELECT -4 AS [Priority],
        N'' AS [CreateTSQL],
 	   CASE WHEN COUNT(*) >10 THEN ' - Results with more than 10 records can be found in the second half of this document, click [here](#nonuqcix) to jump to the list.
 	   <a name="nonuqcix"></a>
-	   ### Non-Unique Clustered Index '
+	   ## Non-Unique Clustered Index '
 	   ELSE '' END AS [MarkdownInfo]
 	   FROM ##PSBlitzIndexDiagnosis
 WHERE  [Priority] = 150

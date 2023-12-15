@@ -98,7 +98,7 @@ Over time, lots of forwarded records create lots of random IO - and reads become
 The short-term solution for this is to rebuild the heaps more often. 
 Note that [Ola Hallengren''s Maintenance Solution](https://ola.hallengren.com/sql-server-index-and-statistics-maintenance.html) does not rebuild heaps, so you''ll have to address those separately.
 Just be aware that when you rebuild heaps, it''s a logged operation, and can slow things down while you work. 
-Only rebuild heapss while keeping a close eye on other activity on the server, doing frequent log backups as necessary.
+Only rebuild heaps while keeping a close eye on other activity on the server, doing frequent log backups as necessary.
 
 The long-term solution is to look into turning these heaps into clustered indexes.
 The rule of thumb for SQL Server is to always create a clustered index on a table unless you can prove there is a performance improvement for you application by using a heap. 
@@ -347,4 +347,4 @@ If you join based on these foreign keys, create a nonclustered index on them.'),
 (200, 'Functioning Statistaholics: Filter Fixation',N'https://www.brentozar.com/go/stats','',''),
 (200, 'Cold Calculators: Definition Defeatists',N'','',''),
 (200, 'Abnormal Psychology: Temporal Tables',N'','',''),
-(200, 'Medicated Indexes: Optimized For Sequential Keys',N'','','')
+(200, 'Medicated Indexes: Optimized For Sequential Keys',N'','','');
