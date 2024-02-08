@@ -1,13 +1,17 @@
-IF OBJECT_ID(N'tempdb.dbo.##BlitzIndexFindings', N'U') IS NOT NULL
+IF OBJECT_ID(N'dbo.BlitzIndexFindings', N'U') IS NULL
   BEGIN
-      DROP TABLE ##BlitzIndexFindings;
-  END;
+      CREATE TABLE [BlitzIndexFindings]
+        (
+           [Priority]         SMALLINT,
+           [Finding]          VARCHAR(500),
+           [URL]              NVARCHAR(500),
+           [SanitizedFInding] VARCHAR(500),
+           [Description]      NVARCHAR(MAX)
+        );
+  END; 
 
-CREATE TABLE ##BlitzIndexFindings
-([Priority] SMALLINT, [Finding] VARCHAR(500), [URL] NVARCHAR(500), [SanitizedFInding] VARCHAR(500), [Description] NVARCHAR(MAX))
-GO
 INSERT INTO
-##BlitzIndexFindings ([Priority], [Finding], [URL], [SanitizedFInding], [Description])
+BlitzIndexFindings ([Priority], [Finding], [URL], [SanitizedFInding], [Description])
 VALUES
 
 (20, 'Multiple Index Personalities: Duplicate keys', N'https://www.brentozar.com/go/duplicateindex','Duplicate keys','
@@ -204,7 +208,7 @@ You have one or more computed columns based on scalar UDFs. This causes SQL Serv
 Read more [here](https://www.brentozar.com/archive/2016/01/another-reason-why-scalar-functions-in-computed-columns-is-a-bad-idea/).'),
 
 (150,'Index Hoarder: More Than 5 Percent NC Indexes Are Unused',N'https://www.brentozar.com/go/IndexHoarder','More Than 5 Percent NC Indexes Are Unused','
-### More than 5% of indexes are unused
+# More than 5% of indexes are unused
 
 If 5% or more of your nonclustered indexes show as unused, this diagnosis is made.
 If you get this diagnosis, look carefully at all the indexes that have 0 reads. To make that easy, those indexes are listed in the _Unused NC index_ section'),
@@ -232,7 +236,7 @@ Also keep in mind that the wider the clustered index key the more overhead for S
 Variable width columns in the clustering keys cause even bigger issues if they''re hot columns (columns that get updated), and they get updated with values slightly wider than the initial value, let''s say NULL gets updated to xyz (8 bytes), or xyz gets updated to abcdefgh (18 bytes), 
 SQL Server will have to shuffle data around pages to make room for the new value which increases fragmentation really fast and adds additional overhead.
 
-#### Recommendations
+ Recommendations
 - Analyze the clustering keys used in the index, make sure they respect the SUN-E (Static, Unique, Narrow, Ever-increasing) principle as much as possible. 
 - There shouldn''t be a valid reason that would warrant a varchar or an nvarchar column as a clustering key column.
 - Avoid using NULLable columns as clustering keys
@@ -261,7 +265,7 @@ The best practice for a clustered index in SQL Server is that it be unique, as w
 If your clustered indexes aren''t unique, take a very close look at why that''s the case.'),
 
 (150, 'Index Hoarder: Unused NC index with Low Writes',N'https://www.brentozar.com/go/IndexHoarder','Unused NC index with Low Writes','
-### Unused NC index
+# Unused NC index
 
 An unused NC index is a sad thing. Or is it?
 To interpret this information, you need to know how usage is calculated. Index usage information is persisted since SQL Server''s restart (there''s a gotcha on SQL Server 2012 - see below).  But of course,  if I create a new index, its usage is only going to be persisted after the time it was created.
@@ -289,7 +293,7 @@ In fact, if you made it a practice to always use these features in EVERY databas
 However, don''t you want to know if you''re NEVER using these features? 
 If you have a fair amount of SQL Server databases, there''s very likely a scenario or two when one of these will come in handy, and you''re not taking advantage of it.
 
-#### Gotchas
+ Gotchas
 Think creating a filtered index or indexed view is super-low risk? Think again!
 If you research these features and find a great use case, be careful when you implement them against a database for the first time. 
 When you create either a filtered index or an indexed view, writes to the table may fail if the application is using different SET options than were in place when the filtered index or indexed view was created. 
