@@ -1,5 +1,22 @@
-DECLARE @XMLContent XML,
-        @FileName   NVARCHAR(512);
+/*
+         Description:  This script loads the data from the Index Usage HTML report file (BlitzIndex_2.html)
+            into a table called PSBlitzIndexUsage
+         Create date: 2025-02-14
+         Author: Vlad Drumea
+         Website: https://vladdba.com
+         From: https://github.com/VladDBA/PSBlitzHTMLParser
+         License: https://github.com/VladDBA/PSBlitzHTMLParser/blob/main/LICENSE
+
+         Usage:
+           1. Update the file path 
+           2. Run
+           3. Query the data from the PSBlitzIndexUsage table
+*/
+
+DECLARE @XMLContent XML;
+SELECT @XMLContent = CONVERT (XML, REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE([BulkColumn], '<a href="#top">Jump to top</a>', ''), '<br>', ''), '<td></td>', '<td>x</td>'),'<link rel="stylesheet" href="styles.css">',''),'<input type="text" id="SearchBox" class="SearchBox" onkeyup="SearchIndexUsage()" placeholder=" Filter by object name...">',''),'<table id=''IndexUsgTable'' class=''IndexUsageTable sortable''>','<table>'), 2)
+                         /*Update the file path here*/
+FROM   OPENROWSET (BULK '<PathToYourPSBlitzOutputDirectory>\HTMLFiles\BlitzIndex_2.html', SINGLE_BLOB) AS [HTMLData];
 
 IF OBJECT_ID(N'dbo.PSBlitzIndexUsage', N'U') IS NULL
   BEGIN
@@ -11,7 +28,6 @@ IF OBJECT_ID(N'dbo.PSBlitzIndexUsage', N'U') IS NULL
            [Object]                                              [NVARCHAR](128) NULL,
            [Index Name]                                          [NVARCHAR](200) NULL,
            [IndexID]                                             [INT] NULL,
-           --[Details: schema.table.index(indexid)]                [NVARCHAR](500) NULL,
            [ObjectType]                                          [NVARCHAR](200) NULL,
            [Definition: Property ColumnName {datatype maxbytes}] [NVARCHAR](max) NULL,
            [Key Column Names With Sort]                          [NVARCHAR](max) NULL,
@@ -69,17 +85,12 @@ IF OBJECT_ID(N'dbo.PSBlitzIndexUsage', N'U') IS NULL
         );
   END;
 
-SELECT @XMLContent = CONVERT (XML, REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE([BulkColumn], '<a href="#top">Jump to top</a>', ''), '<br>', ''), '<td></td>', '<td>x</td>'),'<link rel="stylesheet" href="styles.css">',''),'<input type="text" id="SearchBox" class="SearchBox" onkeyup="SearchIndexUsage()" placeholder=" Filter by object name...">',''),'<table id=''IndexUsgTable'' class=''IndexUsageTable sortable''>','<table>'), 2)
---SELECT BulkColumn
-FROM   OPENROWSET (BULK 'F:\PSBlitz_wip\LOCALHOST_VSQL2019_202502121028\HTMLFiles\BlitzIndex_2.html', SINGLE_BLOB) AS [HTMLData];
-
 WITH XMLToTableCTE
      AS (SELECT xx.value('(./td/text())[1]', 'NVARCHAR(200)')  AS [Database],
                 xx.value('(./td/text())[2]', 'NVARCHAR(200)')  AS [Schema],
                 xx.value('(./td/text())[3]', 'NVARCHAR(128)')  AS [Object],
                 xx.value('(./td/text())[4]', 'NVARCHAR(200)')  AS [Index],
                 xx.value('(./td/text())[5]', 'INT')            AS [IndexID],
-                --xx.value('(./td/text())[6]', 'NVARCHAR(500)')  AS [Details: schema.table.index(indexid)],
                 xx.value('(./td/text())[6]', 'NVARCHAR(200)')  AS [ObjectType],
                 xx.value('(./td/text())[7]', 'NVARCHAR(MAX)')  AS [Definition: Property ColumnName {datatype maxbytes}],
                 xx.value('(./td/text())[8]', 'NVARCHAR(MAX)')  AS [Key Column Names With Sort],
@@ -143,7 +154,6 @@ INSERT INTO [dbo].[PSBlitzIndexUsage]
              [Object],
              [Index Name],
              [IndexID],
-             --[Details: schema.table.index(indexid)],
              [ObjectType],
              [Definition: Property ColumnName {datatype maxbytes}],
              [Key Column Names With Sort],
