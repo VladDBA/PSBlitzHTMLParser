@@ -24,6 +24,7 @@ IF OBJECT_ID(N'dbo.PSBlitzIndexUsage', N'U') IS NULL
            [Filter Definition]                                   [NVARCHAR](max) NULL,
            [Is Indexed View]                                     [NVARCHAR](30) NULL,
            [Is PK]                                               [NVARCHAR](30) NULL,
+           [Is Unique Constraint]                                [NVARCHAR](30) NULL,
            [Is XML]                                              [NVARCHAR](30) NULL,
            [Is Spatial]                                          [NVARCHAR](30) NULL,
            [Is NC Columnstore]                                   [NVARCHAR](30) NULL,
@@ -62,7 +63,7 @@ IF OBJECT_ID(N'dbo.PSBlitzIndexUsage', N'U') IS NULL
            [Page IO Latch Wait Count]                            [BIGINT] NULL,
            [Page IO Latch Wait ms]                               [BIGINT] NULL,
            [Data Compression]                                    [NVARCHAR](100) NULL,
-           [Forwarded Fetches]                                   INT NULL,
+           [Forwarded Fetches]                                   [BIGINT] NULL,
            [Create Date]                                         [DATETIME] NULL,
            [Modify Date]                                         [DATETIME] NULL
         );
@@ -82,7 +83,7 @@ WITH XMLToTableCTE
                 xx.value('(./td/text())[6]', 'NVARCHAR(200)')  AS [ObjectType],
                 xx.value('(./td/text())[7]', 'NVARCHAR(MAX)')  AS [Definition: Property ColumnName {datatype maxbytes}],
                 xx.value('(./td/text())[8]', 'NVARCHAR(MAX)')  AS [Key Column Names With Sort],
-                xx.value('(./td/text())[9]', 'NVARCHAR(200)')           AS [Count Key Columns],
+                xx.value('(./td/text())[9]', 'NVARCHAR(200)')  AS [Count Key Columns],
                 xx.value('(./td/text())[10]', 'NVARCHAR(MAX)') AS [Include Column Names],
                 xx.value('(./td/text())[11]', 'INT')           AS [Count Included Columns],
                 xx.value('(./td/text())[12]', 'NVARCHAR(MAX)') AS [Secret Column Names],
@@ -155,6 +156,7 @@ INSERT INTO [dbo].[PSBlitzIndexUsage]
              [Filter Definition],
              [Is Indexed View],
              [Is PK],
+             [Is Unique Constraint],
              [Is XML],
              [Is Spatial],
              [Is NC Columnstore],
@@ -192,6 +194,7 @@ INSERT INTO [dbo].[PSBlitzIndexUsage]
              [Page Latch Wait ms],
              [Page IO Latch Wait Count],
              [Page IO Latch Wait ms],
+             [Forwarded Fetches],
              [Data Compression],
              [Create Date],
              [Modify Date])
@@ -243,6 +246,10 @@ SELECT [Database],
          WHEN [Is PK] = 'x' THEN NULL
          ELSE [Is PK]
        END                         AS [Is PK],
+      CASE
+         WHEN [Is Unique Constraint] = 'x' THEN NULL
+         ELSE [Is Unique Constraint]
+       END                         AS [Is Unique Constraint],
        CASE
          WHEN [Is XML] = 'x' THEN NULL
          ELSE [Is XML]
@@ -370,6 +377,10 @@ SELECT [Database],
               WHEN [Page IO Latch Wait ms] = 'x' THEN NULL
               ELSE [Page IO Latch Wait ms]
             END AS BIGINT)         AS [Page IO Latch Wait ms],
+       CAST(CASE
+              WHEN [Forwarded Fetches] = 'x' THEN NULL
+              ELSE [Forwarded Fetches]
+            END AS BIGINT)         AS [Forwarded Fetches],
        [Data Compression],
        [Create Date],
        [Modify Date]
